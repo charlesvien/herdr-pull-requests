@@ -30,6 +30,7 @@ const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const after = (list, current) => list[(list.indexOf(current) + 1) % list.length];
 const isStale = (pr) => Date.now() - pr.updated > STALE_DAYS * 86400000;
 const hasBot = (pr) => pr.repo.startsWith(`${BOT_OWNER}/`);
+const selectableIds = (rows) => rows.filter((row) => hasBot(row.pr)).map((row) => row.pr.id);
 
 function ago(time) {
   const seconds = Math.max(0, (Date.now() - time) / 1000);
@@ -172,7 +173,7 @@ export default class PullRequests extends View {
   }
 
   toggle(pr, rows, shift, cx) {
-    const ids = rows.map((row) => row.pr.id);
+    const ids = selectableIds(rows);
     const from = ids.indexOf(this.anchor);
     const to = ids.indexOf(pr.id);
     const range = shift && from >= 0 ? ids.slice(Math.min(from, to), Math.max(from, to) + 1) : null;
@@ -181,14 +182,14 @@ export default class PullRequests extends View {
   }
 
   toggleAll(rows, cx) {
-    const ids = rows.map((row) => row.pr.id);
+    const ids = selectableIds(rows);
     this.select(ids, !ids.every((id) => this.selected.has(id)), cx);
   }
 
   toggleStack(rows, index, cx) {
     let end = index + 1;
     while (end < rows.length && rows[end].depth > 0) end++;
-    const ids = rows.slice(index, end).map((row) => row.pr.id);
+    const ids = selectableIds(rows.slice(index, end));
     this.select(ids, !ids.every((id) => this.selected.has(id)), cx);
   }
 
@@ -349,23 +350,23 @@ export default class PullRequests extends View {
   }
 
   row({ pr, depth, stack }, index, rows, t, c, cols, paneList) {
-    const on = this.selected.has(pr.id);
+    const selectable = hasBot(pr);
+    const on = selectable && this.selected.has(pr.id);
     return h_flex().id(`pr-${pr.id}`).h(60).flex_none().px(16).items_center().border_b(1).border_color(t.border)
       .when(on, (el) => el.bg(alpha(t.accent, "14")))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
-      .cursor_pointer()
-      .on_click((e, cx) => this.toggle(pr, rows, e.modifiers.shift, cx))
-      .child(this.checkbox(`select-${pr.id}`, on ? "on" : "off", t))
+      .when(selectable, (el) => el.cursor_pointer().on_click((e, cx) => this.toggle(pr, rows, e.modifiers.shift, cx)))
+      .when(cols.select, (el) => el.child(selectable ? this.checkbox(`select-${pr.id}`, on ? "on" : "off", t) : div().w(30).flex_none()))
       .child(v_flex().flex_1().min_w(0).pl(depth * 22).pr(16).gap(4)
         .child(div().truncate().text_size(13.5).font_medium().child(pr.title))
         .child(h_flex().gap(8).items_center().text_size(12).text_color(t.muted)
           .when(stack > 0, (el) =>
             el.child(h_flex().id(`stack-${pr.id}`).h(18).flex_none().px(6).gap(5).items_center().rounded(4).bg(alpha(c.stack, "38")).text_color(c.stack).text_size(10.5).font_semibold()
-              .cursor_pointer().hover((s) => s.bg(alpha(c.stack, "59"))).tooltip("Select the whole stack")
-              .on_click((_e, cx) => {
-                cx.stop_propagation();
-                this.toggleStack(rows, index, cx);
-              })
+              .when(selectable, (badge) => badge.cursor_pointer().hover((s) => s.bg(alpha(c.stack, "59"))).tooltip("Select the whole stack")
+                .on_click((_e, cx) => {
+                  cx.stop_propagation();
+                  this.toggleStack(rows, index, cx);
+                }))
               .child(icon("layers").size(11)).child(`STACK OF ${stack}`)))
           .when(pr.draft, (el) => el.child(div().flex_none().px(6).h(18).flex().items_center().rounded(4).bg(t.raised).text_size(10.5).font_semibold().child("DRAFT")))
           .child(div().min_w(0).truncate().child(`${pr.repo}#${pr.number} · @${pr.author} · opened ${ago(pr.created)}`))))
@@ -396,11 +397,10 @@ export default class PullRequests extends View {
     const filter = FILTERS.find((candidate) => candidate.id === this.filter) ?? FILTERS[0];
     const rows = arrange(needle ? all : scoped, this.sort, (pr) => filter.test(pr) && (!needle || `${pr.title} ${pr.repo}#${pr.number} @${pr.author} ${pr.head}`.toLowerCase().includes(needle)));
     this.rows = rows;
-    const chosen = rows.filter((row) => this.selected.has(row.pr.id)).map((row) => row.pr);
-    const targets = chosen.filter(hasBot);
-    const skipped = chosen.length - targets.length;
+    const selectable = selectableIds(rows);
+    const chosen = rows.filter((row) => hasBot(row.pr) && this.selected.has(row.pr.id)).map((row) => row.pr);
     const compact = this.width < 940;
-    const cols = { bar: this.width >= 1040, status: this.width >= 1040 ? 310 : 246, updated: this.width >= 820 ? 84 : 0 };
+    const cols = { select: selectable.length > 0, bar: this.width >= 1040, status: this.width >= 1040 ? 310 : 246, updated: this.width >= 820 ? 84 : 0 };
     const paneList = panes();
     const empty = needle ? `Nothing matches "${this.query.trim()}"` : this.prs ? filter.empty : this.loading ? "Loading pull requests…" : "";
 
@@ -448,7 +448,7 @@ export default class PullRequests extends View {
       .children(BULK_ACTIONS.map((action) => {
         const armed = this.armed?.id === action.id;
         const running = this.posting?.id === action.id;
-        const enabled = targets.length > 0 && !this.posting;
+        const enabled = !this.posting;
         return h_flex().id(`bulk-${action.id}`).h(24).px(9).gap(6).flex_none().items_center().rounded(6).border_1().font_medium()
           .border_color(armed ? t.solid : t.input)
           .text_color(armed ? t.solid_foreground : enabled || running ? t.foreground : t.dim)
@@ -456,11 +456,10 @@ export default class PullRequests extends View {
           .when(enabled, (el) => el.cursor_pointer())
           .when(enabled && !armed, (el) => el.hover((s) => s.bg(t.hover)))
           .tooltip(`Comments "${action.comment}" on each selected PR`)
-          .on_click((_e, cx) => this.runBulk(action, targets, cx))
+          .on_click((_e, cx) => this.runBulk(action, chosen, cx))
           .when(running, (el) => el.child(icon("spinner").size(12).spin(900)))
-          .child(running ? `Posting ${this.posting.done}/${this.posting.total}` : armed ? `Post on ${plural(targets.length, "PR")}?` : action.label);
+          .child(running ? `Posting ${this.posting.done}/${this.posting.total}` : armed ? `Post on ${plural(chosen.length, "PR")}?` : action.label);
       }))
-      .when(skipped > 0, (el) => el.child(div().min_w(0).truncate().text_color(t.dim).child(`${plural(skipped, "PR")} outside ${BOT_OWNER} ${skipped === 1 ? "is" : "are"} skipped`)))
       .child(div().flex_1())
       .child(div().id("clear-selection").px(7).h(22).flex().flex_none().items_center().rounded(5).cursor_pointer().text_color(t.muted)
         .hover((s) => s.bg(t.hover).text_color(t.foreground))
@@ -468,7 +467,7 @@ export default class PullRequests extends View {
         .child("Clear"));
 
     const columns = h_flex().h(36).flex_none().px(16).items_center().border_b(1).border_color(t.border)
-      .child(this.checkbox("select-all", !chosen.length ? "off" : chosen.length === rows.length ? "on" : "some", t, (_e, cx) => this.toggleAll(rows, cx)))
+      .when(cols.select, (el) => el.child(this.checkbox("select-all", !chosen.length ? "off" : chosen.length === selectable.length ? "on" : "some", t, (_e, cx) => this.toggleAll(rows, cx))))
       .child(chosen.length ? bulk : labels);
 
     const staleNote = h_flex().h(44).flex_none().px(16).gap(10).items_center().text_size(12).text_color(t.dim)

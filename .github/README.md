@@ -26,7 +26,7 @@
 - **Three filters.** Needs attention, Needs review and Ready to merge, each with a live count.
 - **Fix.** Starts an agent on the PR's branch to get it mergeable. It reuses the worktree for that branch or makes one.
 - **Jump to the branch.** The terminal button opens the space on that branch and shows when an agent is working there.
-- **Bulk comments.** Select many PRs and post a bot command on all of them, after a confirm click.
+- **Bulk bot comments.** On PRs in the PostHog org, select many and post a review bot command on all of them after a confirm click. Other repos never show the checkboxes.
 - **Sidebar count.** The Apps entry shows how many PRs need attention.
 
 <p align="center">
@@ -90,7 +90,7 @@ This goes in your own layout. Still on the shipped one? Clone it first with `her
 
 - Open it from **Apps** in the sidebar. Leave with Esc, the × in the title bar or by switching space.
 - Hide the sidebar and the app fills the whole window.
-- Click a row to select it. Shift-click selects a range, a stack badge selects its stack and the header box selects everything.
+- PRs in the PostHog org can be selected. Click a row, shift-click for a range, click a stack badge for its stack or use the header box for all of them.
 - A bulk button asks once ("Post on 3 PRs?") before it comments.
 
 Switching space or tab closes the app by itself. To also leave when you click the space you are already in, add this line to your spaces and agents mods, right before they select:
@@ -117,7 +117,7 @@ Nothing is bound by default. These commands work in `keys.json`:
 The settings sit at the top of `mods/pull-requests/main.js`.
 
 - `BULK_ACTIONS`: the comments the bulk buttons post.
-- `BOT_OWNER`: bulk comments only go to PRs in this org.
+- `BOT_OWNER`: the org whose PRs get checkboxes and bulk comments.
 - `FIX_TASK`: the first message the Fix agent gets. By default it stops before committing or pushing.
 - `STALE_DAYS`: PRs quieter than this fold away at the bottom of the list.
 
