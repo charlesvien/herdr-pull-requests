@@ -1,6 +1,8 @@
 /*
 !/.gitignore
 !/.github/
+!/RECIPE.md
+!/preview.png
 !/mods/
 /mods/*
 !/mods/pull-requests/

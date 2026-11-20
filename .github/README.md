@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="preview.png" width="920" alt="The Pull requests app listing stacked pull requests with review and CI status">
+  <img src="../preview.png" width="920" alt="The Pull requests app listing stacked pull requests with review and CI status">
 </p>
 
 ## What it does
