@@ -386,7 +386,7 @@ export default class PullRequests extends View {
     const opened = this.app ? (shared(OPEN_KEY)?.place ?? null) : null;
     if (opened !== this.focusedFor) {
       this.focusedFor = opened;
-      if (opened) this.handle.focus();
+      if (opened) cx.timer.after(0, () => this.handle.focus());
     }
 
     const c = { ok: t.ansi2, run: t.ansi4, warn: t.ansi3, bad: t.ansi1, stack: t.ansi5 };
