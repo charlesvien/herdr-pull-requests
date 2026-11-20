@@ -1,0 +1,10 @@
+/*
+!/.gitignore
+!/.github/
+!/mods/
+/mods/*
+!/mods/pull-requests/
+!/mods/apps/
+gpui-kit.d.ts
+jsconfig.json
+.DS_Store
